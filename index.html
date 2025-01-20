@@ -13,92 +13,113 @@
   </style>
 </head>
 <body>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
-<script>
-    const scene = new THREE.Scene();
-    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-    const renderer = new THREE.WebGLRenderer();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
-
-    const video = document.createElement('video');
-    navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
-        video.srcObject = stream;
-        video.play();
-        video.addEventListener('loadedmetadata', () => {
-            adjustAspectRatio();
-        });
-    });
-
-    async function loadShaderFile(url) {
-        const response = await fetch(url);
-        return response.text();
-    }
-
-    let quad; // Declare `quad` here for global access
-
-    const start = Date.now();
-
-    async function init() {
-        const vertexShaderSource = await loadShaderFile('./shaders/vertex.glsl?v=' + Date.now());
-        const fragmentShaderSource = await loadShaderFile('./shaders/comic.glsl?v=' + Date.now());
-
-        const texture = new THREE.VideoTexture(video);
-
-        const resolution = [window.innerWidth, window.innerHeight];
-
-        const material = new THREE.ShaderMaterial({
-            uniforms: { 
-                u_texture: { value: texture }, 
-                u_resolution : {value: resolution},
-                u_time: {value: 0.0} 
-            },
-            vertexShader: vertexShaderSource,
-            fragmentShader: fragmentShaderSource,
-        });
-
-        const plane = new THREE.PlaneGeometry(2, 2);
-        quad = new THREE.Mesh(plane, material); // Assign `quad` globally
-        scene.add(quad);
-
-        adjustAspectRatio(); // Ensure aspect ratio is adjusted after `quad` is created
-    }
-
-    function animate() {
-        requestAnimationFrame(animate);
-
-        if(quad && quad.material.uniforms.u_time) {
-            quad.material.uniforms.u_time.value = (Date.now() - start)/1000.0;
-        }
-
-        renderer.render(scene, camera);
-    }
-
-    // Handle resizing and maintain aspect ratio
-    function adjustAspectRatio() {
-        if (!quad) return; // Ensure `quad` is initialized
-
-        const videoAspect = video.videoWidth / video.videoHeight;
-        const windowAspect = window.innerWidth / window.innerHeight;
-
-        if (windowAspect > videoAspect) {
-            // Window is wider than the video
-            const scaleX = videoAspect / windowAspect;
-            quad.scale.set(scaleX, 1, 1);
-        } else {
-            // Window is taller than the video
-            const scaleY = windowAspect / videoAspect;
-            quad.scale.set(1, scaleY, 1);
-        }
-
+    <label for="shaders">Select Shader</label>
+    <select name="shaders" id="shaders">
+        <option value="fragment">Default</option>
+        <option value="sketch">Sketch</option>
+        <option value="comic">Comic</option>
+        <option value="ascii">Ascii</option>
+    </select>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        const renderer = new THREE.WebGLRenderer();
         renderer.setSize(window.innerWidth, window.innerHeight);
-        camera.updateProjectionMatrix();
-    }
+        document.body.appendChild(renderer.domElement);
 
-    window.addEventListener('resize', adjustAspectRatio);
+        const video = document.createElement('video');
+        navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+            video.srcObject = stream;
+            video.play();
+            video.addEventListener('loadedmetadata', () => {
+                adjustAspectRatio();
+            });
+        });
 
-    init();
-    animate();
-</script>
+        async function loadShaderFile(url) {
+            const response = await fetch(url);
+            return response.text();
+        }
+
+        let quad; // Declare `quad` here for global access
+
+        const start = Date.now();
+        let currentShader = 'fragment';
+
+        async function init() {
+            const vertexShaderSource = await loadShaderFile('./shaders/vertex.glsl?v=' + Date.now());
+            const fragmentShaderSource = await loadShaderFile(`./shaders/${currentShader}.glsl?v=` + Date.now());
+
+            const texture = new THREE.VideoTexture(video);
+            const font = new THREE.TextureLoader().load("./textures/font1.png");
+            const noise = new THREE.TextureLoader().load("./textures/gray_noise_small.png");
+
+            const resolution = [window.innerWidth, window.innerHeight];
+
+            const material = new THREE.ShaderMaterial({
+                uniforms: { 
+                    u_texture: { value: texture }, 
+                    u_font: {value: font},
+                    u_noise: {value: noise},
+                    u_resolution : {value: resolution},
+                    u_time: {value: 0.0} 
+                },
+                vertexShader: vertexShaderSource,
+                fragmentShader: fragmentShaderSource,
+            });
+
+            const plane = new THREE.PlaneGeometry(2, 2);
+            quad = new THREE.Mesh(plane, material); // Assign `quad` globally
+            scene.add(quad);
+
+            adjustAspectRatio(); // Ensure aspect ratio is adjusted after `quad` is created
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if(quad && quad.material.uniforms.u_time) {
+                quad.material.uniforms.u_time.value = (Date.now() - start)/1000.0;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle resizing and maintain aspect ratio
+        function adjustAspectRatio() {
+            if (!quad) return; // Ensure `quad` is initialized
+
+            const videoAspect = video.videoWidth / video.videoHeight;
+            const windowAspect = window.innerWidth / window.innerHeight;
+
+            if (windowAspect > videoAspect) {
+                // Window is wider than the video
+                const scaleX = videoAspect / windowAspect;
+                quad.scale.set(scaleX, 1, 1);
+            } else {
+                // Window is taller than the video
+                const scaleY = windowAspect / videoAspect;
+                quad.scale.set(1, scaleY, 1);
+            }
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.updateProjectionMatrix();
+        }
+
+        async function changeShader(newShader) {
+            currentShader = newShader;
+            await init(); // Reinitialize the shader with the new fragment shader
+        }
+
+        document.getElementById('shaders').addEventListener('change', (event) => {
+            changeShader(event.target.value);
+        });
+
+        window.addEventListener('resize', adjustAspectRatio);
+
+        init();
+        animate();
+    </script>
 </body>
 </html>
