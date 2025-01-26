@@ -13,13 +13,16 @@
   </style>
 </head>
 <body>
-    <label for="shaders">Select Shader</label>
-    <select name="shaders" id="shaders">
-        <option value="fragment">Default</option>
-        <option value="sketch">Sketch</option>
-        <option value="comic">Comic</option>
-        <option value="ascii">Ascii</option>
-    </select>
+    <div id="controls">
+        <label for="shaders">Select Shader</label>
+        <select name="shaders" id="shaders">
+            <option value="fragment">Default</option>
+            <option value="sketch">Sketch</option>
+            <option value="comic">Comic</option>
+            <option value="ascii">Ascii</option>
+        </select>
+        <button id="save-frame">Save Frame</button>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
     <script>
         const scene = new THREE.Scene();
@@ -60,21 +63,30 @@
             const material = new THREE.ShaderMaterial({
                 uniforms: { 
                     u_texture: { value: texture }, 
-                    u_font: {value: font},
-                    u_noise: {value: noise},
-                    u_resolution : {value: resolution},
-                    u_time: {value: 0.0} 
+                    u_font: { value: font },
+                    u_noise: { value: noise },
+                    u_resolution: { value: resolution },
+                    u_time: { value: 0.0 }
                 },
                 vertexShader: vertexShaderSource,
                 fragmentShader: fragmentShaderSource,
             });
 
             const plane = new THREE.PlaneGeometry(2, 2);
-            quad = new THREE.Mesh(plane, material); // Assign `quad` globally
+
+            // Remove the old quad if it exists
+            if (quad) {
+                scene.remove(quad);
+                quad.geometry.dispose(); // Dispose the geometry
+                quad.material.dispose(); // Dispose the material
+            }
+
+            quad = new THREE.Mesh(plane, material);
             scene.add(quad);
 
             adjustAspectRatio(); // Ensure aspect ratio is adjusted after `quad` is created
         }
+
 
         function animate() {
             requestAnimationFrame(animate);
@@ -117,6 +129,18 @@
         });
 
         window.addEventListener('resize', adjustAspectRatio);
+
+        document.getElementById('save-frame').addEventListener('click', () => {
+            // Explicitly render the scene to ensure the canvas has the latest frame
+            renderer.render(scene, camera);
+            
+            // Save the current frame
+            const dataURL = renderer.domElement.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = 'snapshot.png';
+            link.href = dataURL;
+            link.click();
+        });
 
         init();
         animate();

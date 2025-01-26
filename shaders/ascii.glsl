@@ -51,7 +51,7 @@ const float pixel_size = 0.01;
 const float letter_change_speed = 0.01;
 
 void main(){
-    vec2 uv = v_uv;
+    vec2 uv = vec2(v_uv.x * -1.0 + 1.0, v_uv.y);
 
     float aspect_ratio = u_resolution.x/u_resolution.y;
 
