@@ -6,7 +6,7 @@ uniform float u_time;
 varying vec2 v_uv;
 
 float brightnesss(vec2 uv){
-    return dot(texture2D(u_texture, uv).rgb * 1.55, vec3(0.2126, 0.7152, 0.0722));
+    return dot(texture2D(u_texture, uv).rgb, vec3(0.2126, 0.7152, 0.0722));
 }
 
 vec3 palette[3];

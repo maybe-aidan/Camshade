@@ -83,7 +83,7 @@ void main() {
         for(int j = -1; j <= 1; j++){
             vec2 offset = vec2(i, j) / u_resolution;
 
-            vec3 texColor = texture2D(u_texture, uv + offset).xyz * 1.5;
+            vec3 texColor = texture2D(u_texture, uv + offset).xyz;
 
             sumX += length(texColor) * float(sobelX[1+i][1+j]);
             sumY += length(texColor) * float(sobelY[1+i][1+j]); 
