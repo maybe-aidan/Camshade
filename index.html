@@ -1,36 +1,108 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Webcam Shader</title>
+  <title>Camshade</title>
   <style>
     body {
-      margin: 0;
-      overflow: hidden;
+        margin: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
     }
+    #controls {
+        padding: 10px;
+        background-color: #888888;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+        gap: 10px;
+    }
+    #save-frame{
+        display: flex;
+        text-align: center;
+        align-items: center;
+        padding-bottom: 1rem;
+        padding-top: 0;
+        border-radius: 1rem;
+        background-color: #6d6d6d;
+    }
+    #save-frame:hover{
+        background-color: #9c9c9c;
+    }
+    .camera{
+        font-size: 2rem;
+    }
+
+    #sandbox {
+        display: flex;
+        flex-grow: 1;
+        overflow: hidden;
+    }
+    #canvas-container {
+        flex-grow: 3;
+        width: 50%;
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden; /* Prevents the canvas from spilling outside */
+    }
+    
+
     canvas {
-      display: block;
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain; /* Ensures proper scaling inside the container */
+    }
+    textarea {
+        flex-grow: 1;
+        width: 50%;
+        background-color: rgb(20, 20, 20);
+        color: orange;
+        border: none;
+        padding: 10px;
+        font-family: monospace;
+        font-size: 14px;
+        resize: none;
+        outline: none;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
     }
   </style>
 </head>
 <body>
     <div id="controls">
-        <label for="shaders">Select Shader</label>
-        <select name="shaders" id="shaders">
-            <option value="fragment">Default</option>
-            <option value="sketch">Sketch</option>
-            <option value="comic">Comic</option>
-            <option value="ascii">Ascii</option>
-        </select>
-        <button id="save-frame">Save Frame</button>
+        <div class="shader-controls">
+            <label for="shaders">Select Shader</label>
+            <select name="shaders" id="shaders">
+                <option value="fragment">Default</option>
+                <option value="sketch">Sketch</option>
+                <option value="comic">Comic</option>
+                <option value="ascii">Ascii</option>
+            </select>
+            <button id="compile-shader">Compile and Run</button>
+        </div>
+        <button id="save-frame"><span class="camera">&#x1F4F7</span></button>
+    </div>
+    <div id="sandbox">
+        <textarea name="shader-dev" id="shader-dev" placeholder="Write your shader code here..."></textarea>
+        <div id="canvas-container">
+            <!-- Canvas will be appended here -->
+        </div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
     <script>
         const scene = new THREE.Scene();
         const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
         const renderer = new THREE.WebGLRenderer();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
 
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        const parent = document.getElementById('canvas-container');
+        parent.appendChild(renderer.domElement);
+        
         const video = document.createElement('video');
         navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
             video.srcObject = stream;
@@ -102,30 +174,83 @@
         function adjustAspectRatio() {
             if (!quad) return; // Ensure `quad` is initialized
 
-            const videoAspect = video.videoWidth / video.videoHeight;
-            const windowAspect = window.innerWidth / window.innerHeight;
+            const containerWidth = parent.clientWidth;
+            const containerHeight = parent.clientHeight;
 
-            if (windowAspect > videoAspect) {
-                // Window is wider than the video
-                const scaleX = videoAspect / windowAspect;
+            const videoAspect = video.videoWidth / video.videoHeight;
+            const containerAspect = containerWidth / containerHeight;
+
+            if (containerAspect > videoAspect) {
+                // Container is wider than the video
+                const scaleX = videoAspect / containerAspect;
                 quad.scale.set(scaleX, 1, 1);
             } else {
-                // Window is taller than the video
-                const scaleY = windowAspect / videoAspect;
+                // Container is taller than the video
+                const scaleY = containerAspect / videoAspect;
                 quad.scale.set(1, scaleY, 1);
             }
 
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setSize(containerWidth, containerHeight); // Match renderer size to container
             camera.updateProjectionMatrix();
+        }
+
+        async function loadShaderIntoTextArea(shaderName) {
+            const shaderSource = await loadShaderFile(`./shaders/${shaderName}.glsl?v=` + Date.now());
+            const textArea = document.getElementById('shader-dev');
+            textArea.value = shaderSource; // Populate the textarea with the shader source
         }
 
         async function changeShader(newShader) {
             currentShader = newShader;
+            await loadShaderIntoTextArea(newShader);
             await init(); // Reinitialize the shader with the new fragment shader
         }
 
+        document.addEventListener("DOMContentLoaded", function() {
+            changeShader("fragment");
+        });
+
         document.getElementById('shaders').addEventListener('change', (event) => {
             changeShader(event.target.value);
+        });
+        
+        document.getElementById('compile-shader').addEventListener('click', async () => {
+            const textArea = document.getElementById('shader-dev');
+            const updatedShaderCode = textArea.value; // Get the code from the textarea
+
+            // Update the fragment shader in the WebGL pipeline
+            const vertexShaderSource = await loadShaderFile('./shaders/vertex.glsl?v=' + Date.now());
+
+            const texture = new THREE.VideoTexture(video);
+            const font = new THREE.TextureLoader().load("./textures/font1.png");
+            const noise = new THREE.TextureLoader().load("./textures/gray_noise_small.png");
+            const resolution = [window.innerWidth, window.innerHeight];
+
+            const material = new THREE.ShaderMaterial({
+                uniforms: { 
+                    u_texture: { value: texture }, 
+                    u_font: { value: font },
+                    u_noise: { value: noise },
+                    u_resolution: { value: resolution },
+                    u_time: { value: 0.0 }
+                },
+                vertexShader: vertexShaderSource,
+                fragmentShader: updatedShaderCode, // Use the code from the textarea
+            });
+
+            const plane = new THREE.PlaneGeometry(2, 2);
+
+            // Remove the old quad if it exists
+            if (quad) {
+                scene.remove(quad);
+                quad.geometry.dispose(); // Dispose the geometry
+                quad.material.dispose(); // Dispose the material
+            }
+
+            quad = new THREE.Mesh(plane, material);
+            scene.add(quad);
+
+            adjustAspectRatio(); // Ensure aspect ratio is adjusted
         });
 
         window.addEventListener('resize', adjustAspectRatio);
