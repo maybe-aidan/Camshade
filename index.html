@@ -41,6 +41,56 @@
         flex-grow: 1;
         overflow: hidden;
     }
+
+    /* Wrap shader info and textarea together */
+    #shader-container {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        width: 50%;
+        height: 100%;
+    }
+
+    .shader-info {
+        background-color: #333;
+        color: white;
+        padding: 10px;
+        overflow-y: hidden;
+        transition: max-height 0.3s ease-in-out;
+    }
+
+    .shader-info-content p{
+        font-weight: 800;
+        font-family: monospace;
+        font-size: 1.0rem;
+    }
+
+    .shader-info-content ul{
+        font-family: monospace;
+        color: chocolate;
+    }
+
+    .shader-info-content {
+        display: block;
+    }
+
+    .shader-info.collapsed .shader-info-content {
+        display: none;
+    }
+
+    textarea {
+        background-color: rgb(20, 20, 20);
+        color: orange;
+        border: none;
+        padding: 10px;
+        font-family: monospace;
+        font-size: 14px;
+        resize: none;
+        outline: none;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+        flex-grow: 1;
+    }
+
     #canvas-container {
         flex-grow: 3;
         width: 50%;
@@ -60,7 +110,6 @@
     }
     textarea {
         flex-grow: 1;
-        width: 50%;
         background-color: rgb(20, 20, 20);
         color: orange;
         border: none;
@@ -88,7 +137,22 @@
         <button id="save-frame"><span class="camera">&#x1F4F7</span></button>
     </div>
     <div id="sandbox">
-        <textarea name="shader-dev" id="shader-dev" placeholder="Write your shader code here..."></textarea>
+        <div id="shader-container">
+            <div class="shader-info collapsed">
+                <button id="toggle-info">Show Uniform Info</button>
+                <div class="shader-info-content">
+                    <p>Provided Uniforms:</p>
+                        <ul>sampler2D u_texture: Webcam Video Feed</ul>
+                        <ul>vec2 u_resolution: Feed Resolution</ul>
+                        <ul>sampler2D u_noise: Gray Noise Texture</ul>
+                        <ul>float u_time: Current Simulation Time in ms</ul>
+                        <ul>sampler2D u_font: Font Texture</ul>
+                    <p>Other Important Values:</p>
+                        <ul>varying vec2 v_uv: UV coordinates</ul>
+                </div>
+            </div>
+            <textarea name="shader-dev" id="shader-dev" placeholder="Write your shader code here..."></textarea>
+        </div>
         <div id="canvas-container">
             <!-- Canvas will be appended here -->
         </div>
@@ -222,6 +286,21 @@
 
         document.getElementById('shaders').addEventListener('change', (event) => {
             changeShader(event.target.value);
+        });
+
+        document.getElementById('toggle-info').addEventListener('click', function() {
+            const shaderInfo = document.querySelector('.shader-info');
+            const button = document.getElementById('toggle-info');
+            
+            // Toggle the 'collapsed' class on the shader-info section
+            shaderInfo.classList.toggle('collapsed');
+            
+            // Change button text based on whether the section is collapsed or expanded
+            if (shaderInfo.classList.contains('collapsed')) {
+                button.textContent = 'Show Uniform Info'; // Collapse version
+            } else {
+                button.textContent = 'Show Less'; // Expanded version
+            }
         });
         
         document.getElementById('compile-shader').addEventListener('click', async () => {

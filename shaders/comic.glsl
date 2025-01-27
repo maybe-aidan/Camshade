@@ -38,8 +38,12 @@ vec3 quantizeColor(vec3 color, float bits) {
 
 
 void main() {
-    vec2 uv = vec2(v_uv.x * -1.0 + 1.0, v_uv.y);
+    vec2 uv = vec2(v_uv.x * -1.0 + 1.0, v_uv.y); // Mirrored UVs to make posing for a snapshot easier.
+    // For non-mirrored:
+    // uv = v_uv;
     vec3 col;
+
+    // Try experimenting with different palettes!
 
     /* Moody Browns */
     

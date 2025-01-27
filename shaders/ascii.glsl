@@ -51,7 +51,9 @@ const float pixel_size = 0.01;
 const float letter_change_speed = 0.01;
 
 void main(){
-    vec2 uv = vec2(v_uv.x * -1.0 + 1.0, v_uv.y);
+    vec2 uv = vec2(v_uv.x * -1.0 + 1.0, v_uv.y); // Mirrored UVs to make posing for a snapshot easier.
+    // For non-mirrored:
+    // uv = v_uv;
 
     float aspect_ratio = u_resolution.x/u_resolution.y;
 

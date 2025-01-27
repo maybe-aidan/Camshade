@@ -9,30 +9,11 @@ float brightnesss(vec2 uv){
     return dot(texture2D(u_texture, uv).rgb, vec3(0.2126, 0.7152, 0.0722));
 }
 
-vec3 palette[3];
-
-vec3 mapToPalette(vec3 color) {
-    float minDist = 99999999.0;
-    vec3 closestColor = palette[0];
-    for(int i = 0; i < 3; i++){
-        float dist = distance(color, palette[i]);
-        if(minDist > dist) {
-            minDist = dist;
-            closestColor = palette[i];
-        }
-    }
-
-    return closestColor;
-}
-
-vec3 quantizeColor(vec3 color, float bits) {
-    float factor = pow(2.0, bits) - 1.0;
-    return (floor(color * factor) / factor);
-}
-
 
 void main() {
-    vec2 uv = vec2(v_uv.x * -1.0 + 1.0, v_uv.y);
+    vec2 uv = vec2(v_uv.x * -1.0 + 1.0, v_uv.y); // Mirrored UVs to make posing for a snapshot easier.
+    // For non-mirrored:
+    // uv = v_uv;
     vec3 col;
 
     vec3 line_col = vec3(0.3, 0.3, 0.38);
