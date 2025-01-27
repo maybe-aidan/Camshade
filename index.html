@@ -104,6 +104,9 @@
         parent.appendChild(renderer.domElement);
         
         const video = document.createElement('video');
+        video.muted = true;  // Allow autoplay on mobile devices
+        video.setAttribute('autoplay', 'true');
+
         navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
             video.srcObject = stream;
             video.play();
@@ -122,11 +125,13 @@
         const start = Date.now();
         let currentShader = 'fragment';
 
+        let texture;
+
         async function init() {
             const vertexShaderSource = await loadShaderFile('./shaders/vertex.glsl?v=' + Date.now());
             const fragmentShaderSource = await loadShaderFile(`./shaders/${currentShader}.glsl?v=` + Date.now());
 
-            const texture = new THREE.VideoTexture(video);
+            texture = new THREE.VideoTexture(video);
             const font = new THREE.TextureLoader().load("./textures/font1.png");
             const noise = new THREE.TextureLoader().load("./textures/gray_noise_small.png");
 
@@ -165,6 +170,11 @@
 
             if(quad && quad.material.uniforms.u_time) {
                 quad.material.uniforms.u_time.value = (Date.now() - start)/1000.0;
+            }
+
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                // Update the texture for each frame
+                texture.needsUpdate = true;
             }
 
             renderer.render(scene, camera);
