@@ -160,11 +160,13 @@
             <button id="compile-shader">Compile and Run</button>
         </div>
         <div class="viewport-controls">
-            <select name="image-mode" id="image-mode">
-                <option value="webcam">Webcam</option>
-                <option value="image">Upload Image</option>
-            </select>
-            <input type="file" id="image-upload" accept="image/*" style="display: none;">
+            <div style="display: flex; flex-direction: column; width: 50%;">
+                <select name="image-mode" id="image-mode">
+                    <option value="webcam">Webcam</option>
+                    <option value="image">Upload Image</option>
+                </select>
+                <input type="file" id="image-upload" accept="image/*" style="display: none;" title=" ">
+            </div>
             <button id="save-frame"><span class="camera">&#x1F4F7</span></button>
         </div>
     </div>
@@ -202,10 +204,14 @@
         const video = document.createElement('video');
         video.muted = true;  // Allow autoplay on mobile devices
         video.setAttribute('autoplay', 'true');
+        video.setAttribute('playsinline', 'true');
 
         navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
             video.srcObject = stream;
-            video.play();
+            video.play().catch(error => {
+                console.log("Playback failed:", error);
+                alert("Tap to start the video.");
+            });
             video.addEventListener('loadedmetadata', () => {
                 adjustAspectRatio();
             });
@@ -334,11 +340,12 @@
             currentMode = mode;
 
             if (mode === 'webcam') {
+                document.getElementById('image-upload').style.display = "none";
                 texture = new THREE.VideoTexture(video);
                 imageTexture = null;
                 init();
             } else if (mode === 'image') {
-                document.getElementById('image-upload').click();
+                document.getElementById('image-upload').style.display = "block";
             }
         });
 
