@@ -10,6 +10,16 @@
         flex-direction: column;
         height: 100vh;
     }
+    header{
+        display: flex;
+        justify-content: center;
+        font-size: 2rem;
+        font-family: monospace;
+        background-color: #333;
+        color: chocolate;
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
     #controls {
         padding: 10px;
         background-color: #888888;
@@ -32,6 +42,18 @@
     #save-frame:hover{
         background-color: #9c9c9c;
     }
+
+    .viewport-controls{
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        width: 20%;
+    }
+    #image-mode{
+        height: 1.2rem;
+    }
+
     .camera{
         font-size: 2rem;
     }
@@ -123,6 +145,9 @@
   </style>
 </head>
 <body>
+    <header>
+        Camshade by Aidan Fox
+    </header>
     <div id="controls">
         <div class="shader-controls">
             <label for="shaders">Select Shader</label>
@@ -134,7 +159,14 @@
             </select>
             <button id="compile-shader">Compile and Run</button>
         </div>
-        <button id="save-frame"><span class="camera">&#x1F4F7</span></button>
+        <div class="viewport-controls">
+            <select name="image-mode" id="image-mode">
+                <option value="webcam">Webcam</option>
+                <option value="image">Upload Image</option>
+            </select>
+            <input type="file" id="image-upload" accept="image/*" style="display: none;">
+            <button id="save-frame"><span class="camera">&#x1F4F7</span></button>
+        </div>
     </div>
     <div id="sandbox">
         <div id="shader-container">
@@ -177,6 +209,9 @@
             video.addEventListener('loadedmetadata', () => {
                 adjustAspectRatio();
             });
+        }).catch(error => {
+            console.error("Error accessing webcam:", error);
+            alert("Could not access the webcam. Please check permissions.");
         });
 
         async function loadShaderFile(url) {
@@ -184,26 +219,30 @@
             return response.text();
         }
 
-        let quad; // Declare `quad` here for global access
-
+        let texture;
+        let imageTexture;
+        let quad;
         const start = Date.now();
         let currentShader = 'fragment';
-
-        let texture;
+        let currentMode = "webcam";
+        let userUploadedTexture = null;
 
         async function init() {
             const vertexShaderSource = await loadShaderFile('./shaders/vertex.glsl?v=' + Date.now());
             const fragmentShaderSource = await loadShaderFile(`./shaders/${currentShader}.glsl?v=` + Date.now());
 
-            texture = new THREE.VideoTexture(video);
             const font = new THREE.TextureLoader().load("./textures/font1.png");
             const noise = new THREE.TextureLoader().load("./textures/gray_noise_small.png");
 
             const resolution = [window.innerWidth, window.innerHeight];
 
+            if(currentMode === "webcam" && !texture){
+                texture = new THREE.VideoTexture(video);
+            }
+
             const material = new THREE.ShaderMaterial({
                 uniforms: { 
-                    u_texture: { value: texture }, 
+                    u_texture: { value: texture || imageTexture }, 
                     u_font: { value: font },
                     u_noise: { value: noise },
                     u_resolution: { value: resolution },
@@ -215,17 +254,16 @@
 
             const plane = new THREE.PlaneGeometry(2, 2);
 
-            // Remove the old quad if it exists
             if (quad) {
                 scene.remove(quad);
-                quad.geometry.dispose(); // Dispose the geometry
-                quad.material.dispose(); // Dispose the material
+                quad.geometry.dispose();
+                quad.material.dispose();
             }
 
             quad = new THREE.Mesh(plane, material);
             scene.add(quad);
 
-            adjustAspectRatio(); // Ensure aspect ratio is adjusted after `quad` is created
+            adjustAspectRatio();
         }
 
 
@@ -238,7 +276,7 @@
 
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
                 // Update the texture for each frame
-                texture.needsUpdate = true;
+                texture && (texture.needsUpdate = true);
             }
 
             renderer.render(scene, camera);
@@ -280,12 +318,45 @@
             await init(); // Reinitialize the shader with the new fragment shader
         }
 
+        // Event listeners
+
         document.addEventListener("DOMContentLoaded", function() {
+            texture = new THREE.VideoTexture(video)
             changeShader("fragment");
         });
 
         document.getElementById('shaders').addEventListener('change', (event) => {
             changeShader(event.target.value);
+        });
+
+        document.getElementById('image-mode').addEventListener('change', (event) => {
+            const mode = event.target.value;
+            currentMode = mode;
+
+            if (mode === 'webcam') {
+                texture = new THREE.VideoTexture(video);
+                imageTexture = null;
+                init();
+            } else if (mode === 'image') {
+                document.getElementById('image-upload').click();
+            }
+        });
+
+        document.getElementById('image-upload').addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const img = new Image();
+                    img.onload = () => {
+                        texture = new THREE.Texture(img);
+                        texture.needsUpdate = true;
+                        init();
+                    };
+                    img.src = reader.result;
+                };
+                reader.readAsDataURL(file);
+            }
         });
 
         document.getElementById('toggle-info').addEventListener('click', function() {
@@ -310,7 +381,6 @@
             // Update the fragment shader in the WebGL pipeline
             const vertexShaderSource = await loadShaderFile('./shaders/vertex.glsl?v=' + Date.now());
 
-            const texture = new THREE.VideoTexture(video);
             const font = new THREE.TextureLoader().load("./textures/font1.png");
             const noise = new THREE.TextureLoader().load("./textures/gray_noise_small.png");
             const resolution = [window.innerWidth, window.innerHeight];
@@ -356,6 +426,18 @@
             link.click();
         });
 
+        document.addEventListener('keydown', (event) => {
+            if (event.ctrlKey && event.key === 's') {
+                event.preventDefault();
+                document.getElementById('save-frame').click();
+            } else if (event.ctrlKey && event.key === 'Enter') {
+                event.preventDefault();
+                document.getElementById('compile-shader').click();
+            }
+        });
+
+
+        // Render
         init();
         animate();
     </script>
